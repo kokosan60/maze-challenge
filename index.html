@@ -179,16 +179,7 @@
   .dpad-btn:disabled { opacity: .4; cursor: default; }
   .dpad-note { margin: 10px 0 0; text-align: center; font-size: 12px; color: var(--ink-soft); }
 
-  /* デバッグ・エラー */
-  .debug-section { margin-top: 22px; }
-  .debug-section details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; }
-  .debug-section summary { cursor: pointer; font-size: 13px; color: var(--ink-soft); font-weight: 700; }
-  .debug-body { margin-top: 10px; display: grid; gap: 10px; justify-items: start; }
-  #debugOut {
-    margin: 0; width: 100%; max-height: 260px; overflow: auto;
-    background: #f6f8fc; border: 1px solid var(--line); border-radius: 8px;
-    padding: 10px 12px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
-  }
+  /* エラー */
   .error-panel {
     margin-top: 14px; background: #fff5f5; border: 1.5px solid #ef9a9a;
     border-radius: 12px; padding: 14px 18px; color: #7f1d1d;
@@ -296,16 +287,6 @@
       <button class="dpad-btn down" data-dir="down" type="button" aria-label="下に移動">▼</button>
     </div>
     <p class="dpad-note">タップ / クリックで移動。迷路の上のスワイプにも対応。</p>
-  </section>
-
-  <section class="debug-section" aria-label="デバッグ情報">
-    <details>
-      <summary>デバッグ情報（開発用）</summary>
-      <div class="debug-body">
-        <button id="btnDebug" class="btn small" type="button">デバッグ情報をコンソールへ出力</button>
-        <pre id="debugOut">迷路未生成</pre>
-      </div>
-    </details>
   </section>
 
   <p class="footnote">迷路サイズは縦・横それぞれ 2〜200 のセル数で指定できます。サイズの変更は「サイズを変更」ボタンでのみ適用され、入力欄を変更しただけでは迷路は変わりません。同じサイズで作り直すには「新しい迷路」を使ってください。入口（スタート左）・出口（ゴール右）の開口部は演出用で、プレイヤーが外周の外へ出る操作はありません。画像保存は表示中の状態（正解経路の表示 / 非表示）で保存されます。</p>
@@ -584,7 +565,6 @@ if (typeof document !== 'undefined') {
   const btnSave = $('btnSave');
   const btnRetry = $('btnRetry');
   const btnNewFromOverlay = $('btnNewFromOverlay');
-  const btnDebug = $('btnDebug');
   const clearOverlay = $('clearOverlay');
   const errorPanel = $('errorPanel');
 
@@ -841,21 +821,7 @@ if (typeof document !== 'undefined') {
     ctx.stroke();
   }
 
-  /* --- デバッグ・エラー表示 --- */
-  function updateDebugPanel() {
-    const pre = $('debugOut');
-    if (!ui.maze || !ui.result) { pre.textContent = '迷路未生成'; return; }
-    const info = debugInfo(ui.maze, ui.result);
-    info.generationAttempt = ui.attempt;
-    pre.textContent = JSON.stringify(info, null, 2);
-  }
-  window.debugMaze = function () {
-    if (!ui.maze || !ui.result) { console.log('[迷路デバッグ] 迷路未生成'); return null; }
-    const info = debugInfo(ui.maze, ui.result);
-    info.generationAttempt = ui.attempt;
-    console.log('[迷路デバッグ]', info);
-    return info;
-  };
+  /* --- エラー表示 --- */
   function hideError() { errorPanel.classList.add('hidden'); }
   function showFatalError(msg) {
     try {
@@ -888,7 +854,6 @@ if (typeof document !== 'undefined') {
     $('parLabel').textContent = (result.solutionPath.length - 1) + '手';
     uniqueBadge.classList.remove('hidden');
     hideError();
-    updateDebugPanel();
     computeGeometry();
     setPhase('playing');
     setHint('矢印キー / WASD キー / 方向ボタン / スワイプで移動。左上の S から右下の G 目指して進んでください。');
@@ -1119,7 +1084,6 @@ if (typeof document !== 'undefined') {
   btnSolve.addEventListener('click', startAutoSolve);
   btnStop.addEventListener('click', stopAutoSolve);
   btnRetry.addEventListener('click', resetMaze);
-  btnDebug.addEventListener('click', () => { window.debugMaze(); updateDebugPanel(); });
   window.addEventListener('resize', () => { if (ui.maze) { computeGeometry(); draw(); } });
 
   btnSave.addEventListener('click', () => {
