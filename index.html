@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>四角形迷路チャレンジ</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='2' y='2' width='20' height='20' rx='4' fill='%233949ab'/%3E%3Cpath d='M7 21v-9h5V7h6' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --card: #ffffff;
+    --ink: #22303f;
+    --ink-soft: #5b6b7c;
+    --line: #d6ddec;
+    --accent: #3949ab;
+    --accent-dark: #2e3b9a;
+    --start: #1565c0;
+    --goal: #e53935;
+    --player: #ffb300;
+    --ok: #1b5e20;
+    --ok-bg: #e8f5e9;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, #dee5ef 1px, transparent 1px);
+    background-size: 20px 20px;
+    color: var(--ink);
+    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", "BIZ UDPGothic", Meiryo, system-ui, sans-serif;
+    line-height: 1.55;
+  }
+  button, select, input { font-family: inherit; }
+  #app { max-width: 1020px; margin: 0 auto; padding: 20px 14px 48px; }
+
+  /* ヘッダー */
+  .app-header {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 20px 14px;
+    box-shadow: 0 6px 18px rgba(34, 48, 63, .07);
+  }
+  .app-header h1 {
+    margin: 0;
+    font-size: clamp(20px, 3.4vw, 27px);
+    letter-spacing: .02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .app-header h1 svg { flex: none; }
+  .tagline { margin: 4px 0 0; font-size: 13px; color: var(--ink-soft); }
+
+  /* 情報バー */
+  .info-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+  .chip {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .chip strong {
+    color: var(--ink);
+    font-size: 14.5px;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+  .badge { border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .badge-unique { background: var(--ok-bg); color: var(--ok); border: 1px solid #a5d6a7; }
+  .st-generating { background: #eceff1; color: #455a64; border: 1px solid #cfd8dc; }
+  .st-playing { background: #e3f0fd; color: #0d47a1; border: 1px solid #90caf9; }
+  .st-solving { background: #fff3e0; color: #a04a00; border: 1px solid #ffcc80; }
+  .st-cleared { background: var(--ok-bg); color: var(--ok); border: 1px solid #a5d6a7; }
+  .st-error { background: #ffebee; color: #b71c1c; border: 1px solid #ef9a9a; }
+  .hidden { display: none !important; }
+
+  /* コントロール */
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 0; }
+  .size-label {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 12px; font-size: 13px; color: var(--ink-soft);
+    flex-wrap: wrap;
+  }
+  .num-input {
+    border: 1px solid var(--line); border-radius: 8px; background: #fbfcfe;
+    color: var(--ink); font-size: 14px; font-weight: 700; padding: 6px 8px; min-height: 40px;
+    width: 76px; text-align: center;
+  }
+  .num-input:disabled { opacity: .5; }
+  .btn {
+    appearance: none;
+    border: 1.5px solid var(--accent);
+    background: var(--card);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    min-height: 44px;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, transform .05s ease, box-shadow .15s ease;
+  }
+  .btn:hover:not(:disabled) { background: #eef0ff; }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); color: var(--ink-soft); }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.primary:hover:not(:disabled) { background: var(--accent-dark); }
+  .btn.small { min-height: 36px; padding: 6px 12px; font-size: 13px; }
+
+  .hint { margin: 10px 2px 0; font-size: 13px; color: var(--ink-soft); min-height: 1.5em; }
+
+  /* ステージ */
+  .stage { margin-top: 12px; }
+  .canvas-wrap {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 8px 24px rgba(34, 48, 63, .08);
+  }
+  #mazeCanvas { display: block; border-radius: 8px; touch-action: none; }
+  .canvas-placeholder { padding: 40px 16px; color: var(--ink-soft); font-size: 14px; text-align: center; }
+  .overlay {
+    position: absolute; inset: 0; border-radius: 16px;
+    background: rgba(255, 255, 255, .82);
+    display: flex; justify-content: center; align-items: center; padding: 16px;
+  }
+  .overlay-panel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(34, 48, 63, .18);
+    padding: 18px 22px; max-width: 340px; width: 100%; text-align: center;
+  }
+  .overlay-title { margin: 0 0 8px; font-size: 24px; font-weight: 800; color: var(--ok); letter-spacing: .04em; }
+  .overlay-stats { margin: 0 0 8px; display: grid; gap: 4px; }
+  .overlay-stats div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+  .overlay-stats dt { color: var(--ink-soft); }
+  .overlay-stats dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .overlay-verified { margin: 6px 0 12px; font-size: 12.5px; color: var(--ok); font-weight: 700; }
+  .overlay-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  .legend {
+    list-style: none; margin: 10px 0 0; padding: 0;
+    display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: center;
+    font-size: 12px; color: var(--ink-soft);
+  }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(34,48,63,.2); }
+  .swatch-circle { border-radius: 50%; }
+
+  /* 方向ボタン */
+  .dpad-section { margin-top: 16px; }
+  .dpad { display: grid; grid-template-columns: repeat(3, 68px); grid-auto-rows: 68px; gap: 10px; justify-content: center; }
+  .dpad-btn {
+    border: 1px solid #c3cddd; background: var(--card); color: #3d4d61;
+    font-size: 20px; border-radius: 16px; cursor: pointer;
+    box-shadow: 0 3px 0 rgba(34, 48, 63, .14);
+    transition: background .1s ease, color .1s ease, transform .05s ease, box-shadow .1s ease;
+    touch-action: manipulation;
+  }
+  .dpad-btn.up { grid-area: 1 / 2; }
+  .dpad-btn.left { grid-area: 2 / 1; }
+  .dpad-center { grid-area: 2 / 2; align-self: center; justify-self: center; width: 12px; height: 12px; border-radius: 50%; background: #c3cddd; }
+  .dpad-btn.right { grid-area: 2 / 3; }
+  .dpad-btn.down { grid-area: 3 / 2; }
+  .dpad-btn:hover:not(:disabled) { background: #eef0ff; }
+  .dpad-btn:active:not(:disabled) { transform: translateY(2px); box-shadow: none; background: var(--accent); color: #fff; }
+  .dpad-btn:disabled { opacity: .4; cursor: default; }
+  .dpad-note { margin: 10px 0 0; text-align: center; font-size: 12px; color: var(--ink-soft); }
+
+  /* デバッグ・エラー */
+  .debug-section { margin-top: 22px; }
+  .debug-section details { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; }
+  .debug-section summary { cursor: pointer; font-size: 13px; color: var(--ink-soft); font-weight: 700; }
+  .debug-body { margin-top: 10px; display: grid; gap: 10px; justify-items: start; }
+  #debugOut {
+    margin: 0; width: 100%; max-height: 260px; overflow: auto;
+    background: #f6f8fc; border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font-size: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  }
+  .error-panel {
+    margin-top: 14px; background: #fff5f5; border: 1.5px solid #ef9a9a;
+    border-radius: 12px; padding: 14px 18px; color: #7f1d1d;
+  }
+  .error-panel h2 { margin: 0 0 6px; font-size: 16px; }
+  .error-panel p { margin: 0 0 6px; font-size: 13.5px; }
+  .error-panel ul { margin: 0; padding-left: 20px; font-size: 13px; }
+  .footnote { margin: 26px 4px 0; font-size: 11.5px; color: #8494a5; text-align: center; }
+
+  :focus-visible { outline: 3px solid #64b5f6; outline-offset: 2px; }
+
+  @media (max-width: 640px) {
+    .dpad { grid-template-columns: repeat(3, 76px); grid-auto-rows: 76px; }
+    .chip { padding: 5px 12px; }
+    .btn { flex: 1 1 auto; }
+    .controls { gap: 8px; }
+    .num-input { width: 64px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="app-header">
+    <h1>
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="2" y="2" width="20" height="20" rx="4" fill="none" stroke="#3949ab" stroke-width="2.4"></rect>
+        <path d="M7 22V12h5V7h10" fill="none" stroke="#3949ab" stroke-width="2.4" stroke-linecap="round"></path>
+        <circle cx="18.5" cy="18.5" r="2.4" fill="#e53935"></circle>
+        <circle cx="5.5" cy="5.5" r="2" fill="#1565c0"></circle>
+      </svg>
+      四角形迷路チャレンジ
+    </h1>
+    <p class="tagline">左上のスタート（S）から右下のゴール（G）まで、一本だけの正解ルートを探そう。</p>
+  </header>
+
+  <section class="info-bar" aria-label="現在の状態">
+    <div class="chip"><span class="chip-label">サイズ</span><strong id="sizeLabel">-</strong></div>
+    <div class="chip"><span class="chip-label">手数</span><strong id="moveCount">0</strong></div>
+    <div class="chip"><span class="chip-label">経過時間</span><strong id="timeLabel">0.0秒</strong></div>
+    <div class="chip"><span class="chip-label">最短手数</span><strong id="parLabel">-</strong></div>
+    <div class="chip"><span class="chip-label">状態</span><span id="statusBadge" class="badge st-generating">生成中</span></div>
+    <div class="chip"><span id="uniqueBadge" class="badge badge-unique hidden">✓ 一意解を確認済み</span></div>
+  </section>
+
+  <div id="errorPanel" class="error-panel hidden" role="alert">
+    <h2>エラーが発生しました</h2>
+    <p id="errorMessage">処理を続行できませんでした。ページを再読み込みするか、サイズを変えてお試しください。</p>
+    <ul id="errorDetails"></ul>
+  </div>
+
+  <section class="controls" aria-label="操作ボタン">
+    <label class="size-label">迷路サイズ
+      <input id="rowsInput" class="num-input" type="number" min="2" max="200" step="1" value="15" aria-label="迷路の縦のセル数（行数、2〜200）" title="縦（行数）: 2〜200">
+      ×
+      <input id="colsInput" class="num-input" type="number" min="2" max="200" step="1" value="25" aria-label="迷路の横のセル数（列数、2〜200）" title="横（列数）: 2〜200">
+    </label>
+    <button id="btnApplySize" class="btn" type="button">サイズを変更</button>
+    <button id="btnNew" class="btn primary" type="button">新しい迷路</button>
+    <button id="btnReset" class="btn" type="button">現在の迷路をリセット</button>
+    <button id="btnSolve" class="btn" type="button">自動解答</button>
+    <button id="btnStop" class="btn" type="button">自動解答を停止</button>
+    <button id="btnSave" class="btn" type="button">迷路画像を保存</button>
+  </section>
+  <p id="hint" class="hint" role="status" aria-live="polite">準備中…</p>
+
+  <section class="stage" aria-label="迷路">
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="mazeCanvas" role="img" aria-label="迷路"></canvas>
+      <div id="canvasPlaceholder" class="canvas-placeholder hidden">迷路を生成できませんでした。ページを再読み込みしてください。</div>
+      <div id="clearOverlay" class="overlay hidden" role="dialog" aria-label="クリア画面">
+        <div class="overlay-panel">
+          <p class="overlay-title">クリア！</p>
+          <dl class="overlay-stats">
+            <div><dt>実際の手数</dt><dd id="ovlMoves">-</dd></div>
+            <div><dt>経過時間</dt><dd id="ovlTime">-</dd></div>
+            <div><dt>最短手数</dt><dd id="ovlPar">-</dd></div>
+            <div><dt>差</dt><dd id="ovlDiff">-</dd></div>
+          </dl>
+          <p class="overlay-verified">✓ 一意解検証済みの迷路です</p>
+          <div class="overlay-actions">
+            <button id="btnRetry" class="btn primary" type="button">もう一度挑戦</button>
+            <button id="btnNewFromOverlay" class="btn" type="button">新しい迷路</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ul class="legend" aria-label="記号の説明">
+      <li><span class="swatch" style="background:#1565c0"></span>スタート（S・左上）</li>
+      <li><span class="swatch" style="background:#e53935"></span>ゴール（G・右下）</li>
+      <li><span class="swatch swatch-circle" style="background:#ffb300"></span>プレイヤー</li>
+      <li><span class="swatch" style="background:#c5cae9"></span>移動済みセル</li>
+      <li><span class="swatch" style="background:rgba(255,145,0,.75)"></span>正解経路</li>
+    </ul>
+  </section>
+
+  <section class="dpad-section" aria-label="方向ボタン">
+    <div class="dpad">
+      <button class="dpad-btn up" data-dir="up" type="button" aria-label="上に移動">▲</button>
+      <button class="dpad-btn left" data-dir="left" type="button" aria-label="左に移動">◀</button>
+      <div class="dpad-center" aria-hidden="true"></div>
+      <button class="dpad-btn right" data-dir="right" type="button" aria-label="右に移動">▶</button>
+      <button class="dpad-btn down" data-dir="down" type="button" aria-label="下に移動">▼</button>
+    </div>
+    <p class="dpad-note">タップ / クリックで移動。迷路の上のスワイプにも対応。</p>
+  </section>
+
+  <section class="debug-section" aria-label="デバッグ情報">
+    <details>
+      <summary>デバッグ情報（開発用）</summary>
+      <div class="debug-body">
+        <button id="btnDebug" class="btn small" type="button">デバッグ情報をコンソールへ出力</button>
+        <pre id="debugOut">迷路未生成</pre>
+      </div>
+    </details>
+  </section>
+
+  <p class="footnote">迷路サイズは縦・横それぞれ 2〜200 のセル数で指定できます。サイズの変更は「サイズを変更」ボタンでのみ適用され、入力欄を変更しただけでは迷路は変わりません。同じサイズで作り直すには「新しい迷路」を使ってください。入口（スタート左）・出口（ゴール右）の開口部は演出用で、プレイヤーが外周の外へ出る操作はありません。画像保存は表示中の状態（正解経路の表示 / 非表示）で保存されます。</p>
+</div>
+
+<script id="app">
+'use strict';
+
+/* ==========================================================================
+ * コアロジック（迷路データ・生成・検証・移動判定）
+ * DOMに依存しない純粋関数のみ。Node（document未定義環境）からもそのまま
+ * 呼び出せるようにし、実装とテストの二重管理を避けている。
+ * ========================================================================== */
+
+const WALL_N = 1, WALL_E = 2, WALL_S = 4, WALL_W = 8;
+const ALL_WALLS = WALL_N | WALL_E | WALL_S | WALL_W;
+const DIRS = [
+  { dr: -1, dc: 0, wall: WALL_N, opp: WALL_S, name: 'up' },
+  { dr: 1, dc: 0, wall: WALL_S, opp: WALL_N, name: 'down' },
+  { dr: 0, dc: -1, wall: WALL_W, opp: WALL_E, name: 'left' },
+  { dr: 0, dc: 1, wall: WALL_E, opp: WALL_W, name: 'right' },
+];
+const SIZE_MIN = 2, SIZE_MAX = 200; // 縦・横それぞれのセル数の範囲
+
+function idx(r, c, cols) { return r * cols + c; }
+
+function createMazeData(rows, cols) {
+  // 各論理セルが上下左右の壁情報（ビットフラグ）を持つ。1 = 壁あり。
+  const cells = new Uint8Array(rows * cols).fill(ALL_WALLS);
+  return { rows, cols, cells };
+}
+
+function shuffle(arr, rng) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+/* --- 4. ランダム化深さ優先探索法（穴掘り法・反復実装・配列スタック） --- */
+function generateMaze(rows, cols, rng = Math.random) {
+  const maze = createMazeData(rows, cols);
+  const { cells } = maze;
+  const visited = new Uint8Array(rows * cols);
+  // 3. スタートセル（左上）を起点として訪問済みにする
+  const start = idx(0, 0, cols);
+  visited[start] = 1;
+  const stack = [start]; // 4. 明示的な配列スタック（再帰関数は使わない）
+  let visitedCount = 1;
+
+  while (stack.length > 0) {
+    // 5. スタック末尾のセルを現在セルにする
+    const cur = stack[stack.length - 1];
+    const r = Math.floor(cur / cols);
+    const c = cur % cols;
+    // 6. 隣接する未訪問セルを列挙し、7. 毎回シャッフルする
+    const candidates = [];
+    for (let k = 0; k < DIRS.length; k++) {
+      const d = DIRS[k];
+      const nr = r + d.dr, nc = c + d.dc;
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+      const ni = idx(nr, nc, cols);
+      if (!visited[ni]) candidates.push(d);
+    }
+    shuffle(candidates, rng);
+    if (candidates.length > 0) {
+      // 8-10. 未訪問セルと接続するときだけ、その1所の壁を取り除いて掘る
+      const d = candidates[0];
+      const ni = idx(r + d.dr, c + d.dc, cols);
+      cells[cur] &= ~d.wall;
+      cells[ni] &= ~d.opp;
+      visited[ni] = 1;
+      visitedCount++;
+      stack.push(ni);
+    } else {
+      // 11. 候補なし → スタック末尾を削除して直前の分岐点へ戻る
+      stack.pop();
+    }
+  }
+  maze.generationVisitedCount = visitedCount;
+  return maze; // 12. スタックが空になるまで続ける
+}
+
+/* --- BFS（stopAtGoal=true ならゴール到達で打ち切り／false なら全体探索） --- */
+function bfs(maze, stopAtGoal) {
+  const { rows, cols, cells } = maze;
+  const n = rows * cols;
+  const start = idx(0, 0, cols); // スタートは左上
+  const goal = idx(rows - 1, cols - 1, cols); // ゴールは右下
+  const dist = new Int32Array(n).fill(-1);   // dist配列を未訪問値 -1 で初期化
+  const parent = new Int32Array(n).fill(-1); // parent配列を初期化
+  const queue = new Int32Array(n);
+  let head = 0, tail = 0;
+  let visitedCount = 1;
+  let cycleDetected = false;
+  dist[start] = 0; // スタートのdistを0にする
+  queue[tail++] = start; // スタートをキューへ入れる
+  while (head < tail) {
+    const cur = queue[head++]; // キューからセルを取り出す
+    if (stopAtGoal && cur === goal) break; // ゴール到達で探索を終了
+    const r = Math.floor(cur / cols);
+    const c = cur % cols;
+    for (let k = 0; k < DIRS.length; k++) {
+      const d = DIRS[k];
+      const nr = r + d.dr, nc = c + d.dc;
+      if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue; // 迷路の外へは進まない
+      if (cells[cur] & d.wall) continue; // 壁のある方向へは進まない
+      const ni = idx(nr, nc, cols);
+      if (dist[ni] !== -1) {
+        // 親セル以外の既訪問セルへ接続する辺 = 閉路の証拠
+        if (ni !== parent[cur]) cycleDetected = true;
+        continue;
+      }
+      dist[ni] = dist[cur] + 1; // キューへ入れる時点でdistとparentを確定
+      parent[ni] = cur;
+      queue[tail++] = ni;
+      visitedCount++;
+    }
+  }
+  // ゴールからparentを逆向きにたどり、反転してスタート→ゴールの経路を作る
+  const solutionPath = [];
+  if (dist[goal] !== -1) {
+    let cur = goal;
+    while (cur !== -1) { solutionPath.push(cur); cur = parent[cur]; }
+    solutionPath.reverse();
+  }
+  return { dist, parent, visitedCount, cycleDetected, solutionPath };
+}
+
+/* --- 6-3. スタート→ゴールの単純経路数を数えるDFS（pathVisitedで現在経路のみ管理）。
+ * 大きい迷路（200×200=4万セル）でも再帰が深くならないよう、明示的なスタックで反復実装する。 --- */
+function countSimplePaths(maze, limit = 2) {
+  const { rows, cols, cells } = maze;
+  const n = rows * cols;
+  const start = idx(0, 0, cols); // スタートは左上
+  const goal = idx(rows - 1, cols - 1, cols);
+  const pathVisited = new Uint8Array(n); // 現在の探索経路だけを管理
+  // スタック各要素: { cell, k } … k は次に試す方向のインデックス
+  const stack = [{ cell: start, k: 0 }];
+  pathVisited[start] = 1; // 進むときにpathVisitedへ追加
+  let count = 0;
+  let firstPath = null;
+
+  while (stack.length > 0) {
+    const top = stack[stack.length - 1];
+    if (top.k >= DIRS.length) {
+      pathVisited[top.cell] = 0; // 戻るときにpathVisitedから削除
+      stack.pop();
+      continue;
+    }
+    const d = DIRS[top.k++];
+    if (cells[top.cell] & d.wall) continue;
+    const r = Math.floor(top.cell / cols);
+    const c = top.cell % cols;
+    const ni = idx(r + d.dr, c + d.dc, cols);
+    if (pathVisited[ni]) continue;
+    if (count >= limit) return { solutionCount: count, firstPath }; // 2個見つけたら探索を中止
+    if (ni === goal) {
+      count++; // ゴール到達でsolutionCountを1増やす
+      if (!firstPath) firstPath = stack.map((e) => e.cell).concat(goal);
+      if (count >= limit) return { solutionCount: count, firstPath };
+      continue;
+    }
+    pathVisited[ni] = 1;
+    stack.push({ cell: ni, k: 0 });
+  }
+  return { solutionCount: count, firstPath };
+}
+
+/* --- 5・6. 迷路検証（生成時検証・生成後検証の両方で使用） --- */
+function validateMaze(maze) {
+  const { rows, cols, cells } = maze;
+  const n = rows * cols;
+  const goal = idx(rows - 1, cols - 1, cols);
+
+  // 内部通路（取り除かれた壁 = セル間の辺）を各辺1回ずつ数える
+  let edgeCount = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cur = idx(r, c, cols);
+      if (c + 1 < cols && !(cells[cur] & WALL_E)) edgeCount++;
+      if (r + 1 < rows && !(cells[cur] & WALL_S)) edgeCount++;
+    }
+  }
+
+  // 6-1. 全体の到達性（全セルを訪問するBFS）
+  const full = bfs(maze, false);
+  const visitedCount = full.visitedCount;
+  const reachable = visitedCount === n; // 未訪問セルが存在しない
+  const startToGoalReachable = full.dist[goal] !== -1;
+
+  // 6-2. 木構造: 連結 + 辺数 = セル数-1 + 閉路（親以外の既訪問セルへの辺）なし
+  const isTree = reachable && edgeCount === n - 1 && !full.cycleDetected;
+
+  // 単純経路数（2で打ち切り）
+  const sp = countSimplePaths(maze, 2);
+
+  // 7. BFSによるsolutionPath（ゴール到達で打ち切るBFSで復元）
+  const sol = bfs(maze, true);
+
+  // 最終的な有効条件
+  const isUnique = visitedCount === n
+    && edgeCount === n - 1
+    && reachable === true
+    && startToGoalReachable === true
+    && sp.solutionCount === 1
+    && isTree === true;
+
+  return {
+    cellCount: n,
+    visitedCount,
+    edgeCount,
+    reachable,
+    startToGoalReachable,
+    solutionCount: sp.solutionCount,
+    solutionPath: sol.solutionPath,
+    isTree,
+    isUnique,
+    cycleDetected: full.cycleDetected,
+    dfsFirstPath: sp.firstPath,
+  };
+}
+
+/* --- 8. 移動判定（壁・外周への移動を禁止） --- */
+function tryMove(maze, player, dirName) {
+  const d = DIRS.find((x) => x.name === dirName);
+  if (!d) return { moved: false };
+  const nr = player.r + d.dr;
+  const nc = player.c + d.dc;
+  if (nr < 0 || nr >= maze.rows || nc < 0 || nc >= maze.cols) {
+    return { moved: false, blocked: true }; // 迷路外
+  }
+  if (maze.cells[idx(player.r, player.c, maze.cols)] & d.wall) {
+    return { moved: false, blocked: true }; // 壁
+  }
+  return { moved: true, r: nr, c: nc };
+}
+
+/* --- 15. デバッグ情報 --- */
+function debugInfo(maze, result) {
+  return {
+    mazeSize: maze.rows + 'x' + maze.cols,
+    cellCount: result.cellCount,
+    visitedCount: result.visitedCount,
+    edgeCount: result.edgeCount,
+    startToGoalReachable: result.startToGoalReachable,
+    solutionCount: result.solutionCount,
+    solutionPathLength: result.solutionPath.length,
+    isTree: result.isTree,
+    isUnique: result.isUnique,
+  };
+}
+
+const MAZE_CORE = { DIRS, WALL_N, WALL_E, WALL_S, WALL_W, SIZE_MIN, SIZE_MAX, idx, generateMaze, bfs, countSimplePaths, validateMaze, tryMove, debugInfo };
+
+/* ==========================================================================
+ * UI層（ブラウザのみで初期化。Nodeでは document が未定義のためスキップ）
+ * ========================================================================== */
+if (typeof document !== 'undefined') {
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('mazeCanvas');
+  const ctx = canvas.getContext('2d');
+  const baseCanvas = document.createElement('canvas'); // 静的部分（壁・通路・S/G）のオフスクリーン
+  const canvasWrap = $('canvasWrap');
+  const statusBadge = $('statusBadge');
+  const uniqueBadge = $('uniqueBadge');
+  const hintEl = $('hint');
+  const rowsInput = $('rowsInput');
+  const colsInput = $('colsInput');
+  const btnApplySize = $('btnApplySize');
+  const btnNew = $('btnNew');
+  const btnReset = $('btnReset');
+  const btnSolve = $('btnSolve');
+  const btnStop = $('btnStop');
+  const btnSave = $('btnSave');
+  const btnRetry = $('btnRetry');
+  const btnNewFromOverlay = $('btnNewFromOverlay');
+  const btnDebug = $('btnDebug');
+  const clearOverlay = $('clearOverlay');
+  const errorPanel = $('errorPanel');
+
+  const COLORS = {
+    wall: '#2b3a4e',
+    passage: '#ffffff',
+    trail: '#c5cae9',
+    path: 'rgba(255, 145, 0, 0.6)',
+    pathHead: '#e65100',
+    start: '#1565c0',
+    goal: '#e53935',
+    player: '#ffb300',
+    playerEdge: '#5d3d00',
+  };
+
+  // 迷路データ / プレイヤー位置 / 検証結果 / 表示状態を分離して保持する
+  const ui = {
+    status: 'generating', // generating | playing | solving | cleared | error
+    maze: null,           // 迷路データ（壁ビット配列）
+    result: null,         // validateMaze() の検証結果（solutionPath を含む）
+    attempt: 0,
+    player: { r: 0, c: 0 },
+    moves: 0,
+    trail: [],            // 移動済みセル（表示状態）
+    elapsedMs: 0,
+    timerStarted: false,
+    timerRunning: false,
+    timerInterval: null,
+    lastTick: 0,
+    solveInterval: null,
+    revealCount: 0,       // 自動解答の表示済みセル数（表示状態）
+    lastRevealedPath: null,
+    geo: null,
+    dpr: 1,
+  };
+
+  const PHASES = {
+    generating: { label: '生成中', cls: 'st-generating' },
+    playing: { label: 'プレイ中', cls: 'st-playing' },
+    solving: { label: '自動解答中', cls: 'st-solving' },
+    cleared: { label: 'クリア', cls: 'st-cleared' },
+    error: { label: '検証失敗', cls: 'st-error' },
+  };
+
+  function setPhase(phase) {
+    ui.status = phase;
+    const info = PHASES[phase];
+    statusBadge.textContent = info.label;
+    statusBadge.className = 'badge ' + info.cls;
+    if (ui.maze) {
+      canvas.setAttribute('aria-label',
+        ui.maze.rows + '行' + ui.maze.cols + '列の迷路。スタートは左上、ゴールは右下。現在の状態: ' + info.label);
+    }
+    updateControls();
+  }
+
+  function updateControls() {
+    const s = ui.status;
+    btnNew.disabled = s === 'generating';
+    btnReset.disabled = !(s === 'playing' || s === 'solving' || s === 'cleared');
+    btnSolve.disabled = s !== 'playing';
+    btnStop.disabled = s !== 'solving';
+    btnSave.disabled = !ui.maze || s === 'generating';
+    rowsInput.disabled = s === 'generating';
+    colsInput.disabled = s === 'generating';
+    btnApplySize.disabled = s === 'generating';
+    document.querySelectorAll('.dpad-btn[data-dir]').forEach((b) => { b.disabled = s !== 'playing'; });
+  }
+
+  function setHint(text) { hintEl.textContent = text; }
+
+  /* --- タイマー --- */
+  function formatTime(ms) {
+    const sec = ms / 1000;
+    if (sec < 60) return sec.toFixed(1) + '秒';
+    const m = Math.floor(sec / 60);
+    const rest = Math.floor(sec - m * 60);
+    return m + '分' + rest + '秒';
+  }
+  function currentTimeMs() {
+    return ui.elapsedMs + (ui.timerRunning ? performance.now() - ui.lastTick : 0);
+  }
+  function updateTimeLabel() {
+    $('timeLabel').textContent = formatTime(currentTimeMs());
+  }
+  function startTimerIfNeeded() {
+    if (!ui.timerStarted) { ui.timerStarted = true; ui.elapsedMs = 0; }
+    resumeTimer();
+  }
+  function resumeTimer() {
+    if (ui.timerRunning || !ui.timerStarted) return;
+    ui.timerRunning = true;
+    ui.lastTick = performance.now();
+    if (!ui.timerInterval) ui.timerInterval = setInterval(updateTimeLabel, 100);
+  }
+  function pauseTimer() {
+    if (!ui.timerRunning) return;
+    ui.elapsedMs += performance.now() - ui.lastTick;
+    ui.timerRunning = false;
+    updateTimeLabel();
+  }
+  function stopTimer() {
+    pauseTimer();
+    if (ui.timerInterval) { clearInterval(ui.timerInterval); ui.timerInterval = null; }
+  }
+  function resetTimer() {
+    stopTimer();
+    ui.timerStarted = false;
+    ui.elapsedMs = 0;
+    updateTimeLabel();
+  }
+
+  /* --- 描画（Canvas） --- */
+  function computeGeometry() {
+    if (!ui.maze) return;
+    const { rows, cols } = ui.maze;
+    const availW = Math.max(180, Math.min(canvasWrap.clientWidth - 28, 880));
+    const capH = 3000; // 縦に極端に長い迷路でCanvasが巨大化しないよう高さにも上限を設ける
+    let ww = Math.floor(Math.min(availW / cols, capH / rows) / 8);
+    ww = Math.max(1, Math.min(6, ww));
+    let cs = Math.min(
+      Math.floor((availW - (cols + 1) * ww) / cols),
+      Math.floor((capH - (rows + 1) * ww) / rows)
+    );
+    if (cs < 4 && ww > 1) {
+      ww = 1;
+      cs = Math.min(
+        Math.floor((availW - (cols + 1) * ww) / cols),
+        Math.floor((capH - (rows + 1) * ww) / rows)
+      );
+    }
+    cs = Math.max(3, Math.min(40, cs));
+    const w = cols * cs + (cols + 1) * ww;
+    const h = rows * cs + (rows + 1) * ww;
+    ui.geo = { cs, ww, w, h };
+    ui.dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(w * ui.dpr);
+    canvas.height = Math.round(h * ui.dpr);
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    baseCanvas.width = canvas.width;
+    baseCanvas.height = canvas.height;
+    renderBase();
+  }
+
+  function drawCellMarker(gctx, r, c, color, label) {
+    const { cs, ww } = ui.geo;
+    const x = ww + c * (cs + ww);
+    const y = ww + r * (cs + ww);
+    const inset = Math.max(1, cs * 0.12);
+    const size = cs - inset * 2;
+    gctx.fillStyle = color;
+    gctx.beginPath();
+    if (typeof gctx.roundRect === 'function') gctx.roundRect(x + inset, y + inset, size, size, Math.max(2, cs * 0.18));
+    else gctx.rect(x + inset, y + inset, size, size);
+    gctx.fill();
+    if (cs >= 10) {
+      gctx.fillStyle = '#ffffff';
+      gctx.font = 'bold ' + Math.max(8, Math.floor(cs * 0.5)) + 'px "Helvetica Neue", Arial, sans-serif';
+      gctx.textAlign = 'center';
+      gctx.textBaseline = 'middle';
+      gctx.fillText(label, x + cs / 2, y + cs / 2 + cs * 0.03);
+    }
+  }
+
+  // 迷路の静的部分（壁・通路・入口・出口・S/G）をオフスクリーンへ描画する。
+  // 大きい迷路（200×200=4万セル）でも、アニメーション中の毎フレームは転送だけになるようにするため。
+  function renderBase() {
+    const { rows, cols, cells } = ui.maze;
+    const { cs, ww, w, h } = ui.geo;
+    const bctx = baseCanvas.getContext('2d');
+    bctx.setTransform(ui.dpr, 0, 0, ui.dpr, 0, 0);
+    bctx.fillStyle = COLORS.wall;
+    bctx.fillRect(0, 0, w, h);
+    const px = (c) => ww + c * (cs + ww);
+    const py = (r) => ww + r * (cs + ww);
+    // 通路（論理セルの内面）
+    bctx.fillStyle = COLORS.passage;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) bctx.fillRect(px(c), py(r), cs, cs);
+    }
+    // 開通している内部通路（壁を取り除いたセル間）を開ける
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cur = idx(r, c, cols);
+        if (c + 1 < cols && !(cells[cur] & WALL_E)) bctx.fillRect(px(c) + cs, py(r), ww, cs);
+        if (r + 1 < rows && !(cells[cur] & WALL_S)) bctx.fillRect(px(c), py(r) + cs, cs, ww);
+      }
+    }
+    // 見た目上の入口（スタート左）と出口（ゴール右）。外周に出る操作はない。
+    bctx.fillRect(0, py(0), ww, cs);
+    bctx.fillRect(w - ww, py(rows - 1), ww, cs);
+    // スタート・ゴール（色＋記号＋文字で判別可能）
+    drawCellMarker(bctx, 0, 0, COLORS.start, 'S');
+    drawCellMarker(bctx, rows - 1, cols - 1, COLORS.goal, 'G');
+  }
+
+  function draw() {
+    if (!ui.maze || !ui.geo) return;
+    const { cols } = ui.maze;
+    const { cs, ww } = ui.geo;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(baseCanvas, 0, 0); // 静的部分はオフスクリーンから転送
+    ctx.setTransform(ui.dpr, 0, 0, ui.dpr, 0, 0);
+    const px = (c) => ww + c * (cs + ww);
+    const py = (r) => ww + r * (cs + ww);
+    // 移動済みセル（移動軌跡）
+    if (ui.trail.length > 1) {
+      ctx.strokeStyle = COLORS.trail;
+      ctx.lineWidth = Math.max(2, cs * 0.5);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < ui.trail.length; i++) {
+        const x = px(ui.trail[i].c) + cs / 2;
+        const y = py(ui.trail[i].r) + cs / 2;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    // 正解経路（自動解答）。solutionPath の先頭から末尾へ順に表示する。
+    if (ui.revealCount > 0 && ui.result && ui.result.solutionPath.length) {
+      const path = ui.result.solutionPath;
+      const n = Math.min(ui.revealCount, path.length);
+      ctx.strokeStyle = COLORS.path;
+      ctx.lineWidth = Math.max(2, cs * 0.45);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const id = path[i];
+        const x = px(id % cols) + cs / 2;
+        const y = py(Math.floor(id / cols)) + cs / 2;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      const hid = path[n - 1]; // 表示中の先頭セル（探索済み区間との色分け）
+      ctx.fillStyle = COLORS.pathHead;
+      ctx.beginPath();
+      ctx.arc(px(hid % cols) + cs / 2, py(Math.floor(hid / cols)) + cs / 2, Math.max(3, cs * 0.22), 0, Math.PI * 2);
+      ctx.fill();
+      ui.lastRevealedPath = path.slice(0, n);
+    }
+    // プレイヤー（丸い記号）。スタート・ゴールのS/Gマーカーはオフスクリーンに描画済み。
+    const cx = px(ui.player.c) + cs / 2;
+    const cy = py(ui.player.r) + cs / 2;
+    ctx.fillStyle = COLORS.player;
+    ctx.strokeStyle = COLORS.playerEdge;
+    ctx.lineWidth = Math.max(1.5, cs * 0.09);
+    ctx.beginPath();
+    ctx.arc(cx, cy, Math.max(4, cs * 0.3), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  /* --- デバッグ・エラー表示 --- */
+  function updateDebugPanel() {
+    const pre = $('debugOut');
+    if (!ui.maze || !ui.result) { pre.textContent = '迷路未生成'; return; }
+    const info = debugInfo(ui.maze, ui.result);
+    info.generationAttempt = ui.attempt;
+    pre.textContent = JSON.stringify(info, null, 2);
+  }
+  window.debugMaze = function () {
+    if (!ui.maze || !ui.result) { console.log('[迷路デバッグ] 迷路未生成'); return null; }
+    const info = debugInfo(ui.maze, ui.result);
+    info.generationAttempt = ui.attempt;
+    console.log('[迷路デバッグ]', info);
+    return info;
+  };
+  function hideError() { errorPanel.classList.add('hidden'); }
+  function showFatalError(msg) {
+    try {
+      errorPanel.classList.remove('hidden');
+      const li = document.createElement('li');
+      li.textContent = msg;
+      $('errorDetails').appendChild(li);
+    } catch (_) { /* 画面を真っ白にしない */ }
+  }
+  window.addEventListener('error', (e) => { showFatalError('予期しないエラー: ' + (e.message || '不明なエラー')); });
+
+  /* --- 生成・採用・リセット --- */
+  function adoptMaze(maze, result, attempt) {
+    ui.maze = maze;
+    ui.result = result;
+    ui.attempt = attempt;
+    ui.player = { r: 0, c: 0 };
+    ui.moves = 0;
+    ui.trail = [{ r: 0, c: 0 }];
+    ui.revealCount = 0;
+    ui.lastRevealedPath = null;
+    resetTimer();
+    clearOverlay.classList.add('hidden');
+    canvas.style.display = 'block';
+    $('canvasPlaceholder').classList.add('hidden');
+    $('sizeLabel').textContent = maze.rows + '×' + maze.cols;
+    rowsInput.value = maze.rows;
+    colsInput.value = maze.cols;
+    $('moveCount').textContent = '0';
+    $('parLabel').textContent = (result.solutionPath.length - 1) + '手';
+    uniqueBadge.classList.remove('hidden');
+    hideError();
+    updateDebugPanel();
+    computeGeometry();
+    setPhase('playing');
+    setHint('矢印キー / WASD キー / 方向ボタン / スワイプで移動。左上の S から右下の G 目指して進んでください。');
+    draw();
+  }
+
+  function generateNewMaze(rows, cols) {
+    clearSolveTimer();
+    clearOverlay.classList.add('hidden');
+    setPhase('generating');
+    hideError();
+    uniqueBadge.classList.add('hidden');
+    let last = null;
+    let attempt = 0;
+    try {
+      // 上限100回。生成時検証・生成後検証の両方に合格した迷路だけを表示する。
+      for (attempt = 1; attempt <= 100; attempt++) {
+        const maze = generateMaze(rows, cols);
+        const res = validateMaze(maze); // 生成時検証
+        last = { maze, res };
+        if (res.isUnique) {
+          const res2 = validateMaze(maze); // 生成後検証（描画前にもう一度）
+          if (res2.isUnique) { adoptMaze(maze, res2, attempt); return true; }
+        }
+        // 失敗した迷路は表示せず破棄して再生成
+      }
+    } catch (e) {
+      showFatalError('迷路生成中にエラーが発生しました: ' + (e && e.message));
+      return false;
+    }
+    showValidationFailure(last ? last.maze : createMazeData(rows, cols), last ? last.res : null, attempt);
+    return false;
+  }
+
+  function showValidationFailure(maze, result, attempt) {
+    setPhase('error');
+    uniqueBadge.classList.add('hidden');
+    const ul = $('errorDetails');
+    ul.innerHTML = '';
+    const lines = result ? [
+      '迷路サイズ: ' + maze.rows + '行 × ' + maze.cols + '列',
+      'セル数 (cellCount): ' + result.cellCount,
+      '内部通路数 (edgeCount): ' + result.edgeCount + '（必要値: ' + (result.cellCount - 1) + '）',
+      '訪問セル数 (visitedCount): ' + result.visitedCount,
+      '到達性: 全セル到達 ' + (result.reachable ? 'OK' : 'NG') + ' / スタート→ゴール ' + (result.startToGoalReachable ? 'OK' : 'NG'),
+      '検出した閉路: ' + (result.cycleDetected ? 'あり' : 'なし'),
+      '経路数 (solutionCount): ' + result.solutionCount,
+    ] : ['迷路の生成に失敗しました。'];
+    lines.push('試行回数: ' + attempt + '回（上限100回）');
+    for (const t of lines) {
+      const li = document.createElement('li');
+      li.textContent = t;
+      ul.appendChild(li);
+    }
+    if (!ui.maze) {
+      canvas.style.display = 'none';
+      $('canvasPlaceholder').classList.remove('hidden');
+    }
+    setHint('一意解検証に失敗したため、迷路を表示できませんでした。');
+  }
+
+  function resetMaze() {
+    if (!ui.maze) return;
+    clearSolveTimer();
+    ui.player = { r: 0, c: 0 };
+    ui.moves = 0;
+    ui.trail = [{ r: 0, c: 0 }];
+    ui.revealCount = 0;
+    ui.lastRevealedPath = null;
+    resetTimer();
+    clearOverlay.classList.add('hidden');
+    $('moveCount').textContent = '0';
+    setPhase('playing'); // 一意解検証結果（ui.result）と solutionPath は保持する
+    setHint('リセットしました。同じ迷路でもう一度挑戦できます。');
+    draw();
+  }
+
+  /* --- 10. 自動解答 --- */
+  function clearSolveTimer() {
+    if (ui.solveInterval) { clearInterval(ui.solveInterval); ui.solveInterval = null; }
+  }
+  function reducedMotion() {
+    return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  function startAutoSolve() {
+    if (ui.status !== 'playing' || !ui.result || !ui.result.solutionPath.length) return;
+    clearSolveTimer();
+    ui.revealCount = 0;
+    ui.lastRevealedPath = null;
+    setPhase('solving');
+    pauseTimer(); // 自動解答中はタイマーを停止
+    setHint('自動解答を再生中…');
+    draw();
+    if (reducedMotion()) {
+      while (ui.status === 'solving') solveStep(); // アニメーション短縮
+      return;
+    }
+    const pathLen = ui.result.solutionPath.length;
+    const stepMs = Math.max(12, Math.min(70, Math.round(2500 / pathLen)));
+    ui.solveInterval = setInterval(solveStep, stepMs);
+  }
+  function solveStep() {
+    if (ui.status !== 'solving' || !ui.result) return;
+    ui.revealCount = Math.min(ui.revealCount + 1, ui.result.solutionPath.length);
+    draw();
+    if (ui.revealCount >= ui.result.solutionPath.length) finishSolve();
+  }
+  function finishSolve() {
+    clearSolveTimer();
+    if (ui.status !== 'solving') return;
+    setPhase('playing');
+    if (ui.timerStarted) resumeTimer();
+    const par = ui.result.solutionPath.length - 1;
+    setHint('自動解答完了: 最短手数は ' + par + ' 手です。');
+    draw();
+  }
+  function stopAutoSolve() {
+    if (ui.status !== 'solving') return;
+    clearSolveTimer();
+    setPhase('playing');
+    if (ui.timerStarted) resumeTimer();
+    setHint('自動解答を中断しました。続きからプレイできます。');
+    draw();
+  }
+
+  /* --- 8・9. 手動操作とクリア判定 --- */
+  function handleMove(dirName) {
+    if (ui.status !== 'playing') return; // 自動解答中・クリア後は操作無効
+    if (!ui.maze) return;
+    const mv = tryMove(ui.maze, ui.player, dirName);
+    if (!mv.moved) {
+      setHint('その方向には進めません（壁または外周）。');
+      return; // 壁にぶつかっただけでは手数を増やさない
+    }
+    ui.player = { r: mv.r, c: mv.c };
+    ui.moves++;
+    ui.trail.push({ r: mv.r, c: mv.c });
+    startTimerIfNeeded(); // 最初の有効な移動でタイマー開始
+    updateTimeLabel();
+    $('moveCount').textContent = String(ui.moves);
+    draw();
+    if (mv.r === ui.maze.rows - 1 && mv.c === ui.maze.cols - 1) onClear();
+  }
+
+  function onClear() {
+    setPhase('cleared');
+    stopTimer(); // クリア時はタイマーを停止
+    const par = ui.result.solutionPath.length - 1;
+    const diff = ui.moves - par;
+    $('ovlMoves').textContent = ui.moves + ' 手';
+    $('ovlTime').textContent = formatTime(currentTimeMs());
+    $('ovlPar').textContent = par + ' 手';
+    $('ovlDiff').textContent = diff === 0 ? '0（最短と同じ！）' : '+' + diff + ' 手';
+    clearOverlay.classList.remove('hidden');
+    setHint('ゴール到達！おめでとうございます。');
+    draw();
+  }
+
+  /* --- 入力 --- */
+  // 縦・横のセル数を入力欄から読む（2〜200に制限。空欄など不正値は現在値に戻す）
+  function readSizeInputs() {
+    let r = parseInt(rowsInput.value, 10);
+    let c = parseInt(colsInput.value, 10);
+    const cur = ui.maze ? [ui.maze.rows, ui.maze.cols] : [15, 25];
+    if (isNaN(r) || r < SIZE_MIN) r = null;
+    if (isNaN(c) || c < SIZE_MIN) c = null;
+    r = Math.max(SIZE_MIN, Math.min(SIZE_MAX, r || cur[0]));
+    c = Math.max(SIZE_MIN, Math.min(SIZE_MAX, c || cur[1]));
+    rowsInput.value = r;
+    colsInput.value = c;
+    return [r, c];
+  }
+  function applySize() {
+    const [r, c] = readSizeInputs();
+    // 入力欄が現在の迷路と同じサイズの場合は、迷路を変更しない。
+    // 同じサイズの迷路を作り直したい場合は「新しい迷路」ボタンを使う。
+    if (ui.maze && r === ui.maze.rows && c === ui.maze.cols) {
+      setHint('入力欄のサイズが現在の迷路と同じため、迷路は変更しません。同じサイズで作り直すには「新しい迷路」を使ってください。');
+      return;
+    }
+    generateNewMaze(r, c);
+  }
+  window.addEventListener('keydown', (e) => {
+    const t = e.target;
+    if (t && (t.tagName === 'SELECT' || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+    let dir = null;
+    if (e.key === 'ArrowUp') dir = 'up';
+    else if (e.key === 'ArrowDown') dir = 'down';
+    else if (e.key === 'ArrowLeft') dir = 'left';
+    else if (e.key === 'ArrowRight') dir = 'right';
+    else if (/^[wasd]$/i.test(e.key)) dir = { w: 'up', a: 'left', s: 'down', d: 'right' }[e.key.toLowerCase()];
+    if (!dir) return;
+    if (e.key.indexOf('Arrow') === 0) e.preventDefault(); // ページスクロール防止
+    handleMove(dir);
+  });
+  document.querySelectorAll('.dpad-btn[data-dir]').forEach((b) => {
+    b.addEventListener('click', () => handleMove(b.dataset.dir));
+  });
+  // スワイプ操作
+  let touchStart = null;
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+  canvas.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('touchend', (e) => {
+    if (!touchStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.x;
+    const dy = t.clientY - touchStart.y;
+    touchStart = null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+    handleMove(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+  });
+
+  btnApplySize.addEventListener('click', applySize);
+  // 入力欄を変更しただけでは迷路は変わらない。「サイズを変更」ボタンでのみ適用する。
+  btnNew.addEventListener('click', () => {
+    // 「新しい迷路」は現在表示中の迷路と同じサイズで作り直す（サイズ変更は「サイズを変更」ボタン専用）
+    const size = ui.maze ? [ui.maze.rows, ui.maze.cols] : readSizeInputs();
+    generateNewMaze(size[0], size[1]);
+  });
+  btnNewFromOverlay.addEventListener('click', () => {
+    const size = ui.maze ? [ui.maze.rows, ui.maze.cols] : readSizeInputs();
+    generateNewMaze(size[0], size[1]);
+  });
+  btnReset.addEventListener('click', resetMaze);
+  btnSolve.addEventListener('click', startAutoSolve);
+  btnStop.addEventListener('click', stopAutoSolve);
+  btnRetry.addEventListener('click', resetMaze);
+  btnDebug.addEventListener('click', () => { window.debugMaze(); updateDebugPanel(); });
+  window.addEventListener('resize', () => { if (ui.maze) { computeGeometry(); draw(); } });
+
+  btnSave.addEventListener('click', () => {
+    if (!ui.maze) return;
+    try {
+      const url = canvas.toDataURL('image/png'); // 表示中の状態（経路あり / なし）で保存
+      const a = document.createElement('a');
+      a.href = url;
+      const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
+      a.download = 'meiro-' + ui.maze.rows + 'x' + ui.maze.cols + '-' + stamp + '.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setHint('迷路画像をPNGで保存しました。');
+    } catch (e) {
+      showFatalError('画像の保存に失敗しました: ' + (e && e.message));
+    }
+  });
+
+  // テスト用エクスポート（本番動作には影響しない）
+  window.__ui = ui;
+  ui.core = MAZE_CORE;
+  ui.solveStep = solveStep;
+
+  try {
+    generateNewMaze(15, 25); // 初期サイズ rows=15, cols=25
+  } catch (e) {
+    showFatalError('初期化に失敗しました: ' + (e && e.message));
+  }
+} else if (typeof globalThis !== 'undefined') {
+  // Node（テスト環境）
+  globalThis.MAZE_CORE = MAZE_CORE;
+}
+</script>
+</body>
+</html>
